@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import serial
+import datetime
+import os
+
+port = serial.Serial('/dev/rfcomm0',baudrate=9600)
+# reading and writing data from and to arduino serially.                                      
+# rfcomm0 -> this could be different
+while True:
+    data=''
+    data_time=0
+    data+='datetime,PM0.3,PM0.5,PM1.0,PM2.5\r\n'
+    while True:
+        time_tmp = datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')
+        rcv = port.readline()
+        if rcv:
+            print(rcv,len(rcv))
+#                if (str(rcv).split(',')[-1]!=check_point):
+            data+=(time_tmp+','+str(rcv).split('\\')[0].split("'")[1]+'\r\n')
+#           print(data)
+            data_time+=1
+#                print(data_time)
+            if data_time == 60:
+                break
+    #print(data)
+    print(datetime.datetime.now().strftime('%H%M%S'))
+    file_name = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+#    data.to_csv(file_name+'.csv',index = False)
+#    ee
+    with open(file_name+'.txt','w') as f:
+        f.write(data)
+#        
+    ###Toftp
+#    data
+#    pd.read_csv(data,sep = ',')
+    
