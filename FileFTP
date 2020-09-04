@@ -1,0 +1,62 @@
+import os
+import pandas as pd
+import numpy as np
+import datetime
+import time
+import glob
+import configparser
+import Library.Connection as Connection
+
+
+
+class config_data:    
+    def __init__(self, config_path):
+        self.setting_config = {}
+        self.connection_config = {}        
+        
+        config = configparser.ConfigParser()
+        config.read(config_path, encoding='utf-8')
+        
+        #setting        
+        items = config.items('setting')
+        for item in items:
+            self.setting_config[item[0]] = item[1]
+        #Connection
+        items = config.items('connection')
+        for item in items:
+            self.connection_config[item[0]] = item[1]
+        self.run_connection = int(self.connection_config['run_connection'])
+
+if __name__ == "__main__":
+    path = '/home/pi/PM25'
+    config_path = '/home/pi/PM25'
+    Savename = 'all.csv'
+    config_list = []
+    
+    print('ReadConfig')
+    for config_file in sorted(glob.glob(config_path + '/config*.ini')):
+        print(config_file)
+        config_list.append(config_data(config_file))
+    
+    
+    signal_dic = pd.DataFrame()
+    for config_class in config_list:
+        time.sleep(1)
+        print('ConfigDone')
+    
+       
+    for file in os.listdir(path):
+        if file.find('.csv')>=0 and file != Savename:
+            # FristData = pd.read_csv(os.path.join(path,os.listdir(path)))
+            FristData = pd.read_csv(os.path.join(path,file))
+            print(file)
+            
+            signal_dicF = {}
+            signal_key = "{}".format('PMS01_') + file[:-4]
+            signal_dicF[signal_key] = FristData
+            
+            if(config_class.run_connection):
+                print('Upload Sensor Signal...')
+                Connection.processing('Sensor', config_class.setting_config, config_class.connection_config, signal_dicF)
+            time.sleep(2)
+
