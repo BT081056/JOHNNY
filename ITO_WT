@@ -1,0 +1,126 @@
+#!/usr/bin/env python
+# coding: utf-8
+####Ver2 : 改為多機台一起
+import pandas as pd
+import numpy as np
+import datetime
+import calendar
+import os
+import glob
+
+EQPID = ['ABAOI500','ABAOI600','ABAOI700']
+MORE_MONTH = 0
+SIZE = 10000
+
+
+##執行抓取FAB資料程式
+import win32process
+import win32event
+
+
+for eq in EQPID:
+    print(eq)
+    print('%sLoader\FTPDataLoader.exe'%eq)
+    
+    handle = win32process.CreateProcess(os.path.join(os.getcwd(),'%sLoader\FTPDataLoader.exe'%eq), '', None, None, 0,
+    win32process.CREATE_NO_WINDOW, None, None, win32process.STARTUPINFO()) # 建立程序獲得控制代碼
+    win32event.WaitForSingleObject(handle[0], -1)
+    print(eq+'Start!!')
+
+    #取得當月
+    NameY = datetime.datetime.now().year
+    NameM = datetime.datetime.now().month
+
+    if MORE_MONTH == 1:
+        Dir = '%s\%s\*%s*'%(os.getcwd(),'Download',eq)
+        Dir = glob.glob(Dir)
+    else:
+        Dir = [os.path.join(os.getcwd(),'Download','SanityData_%s_%s_%s.csv'%(eq,NameY,NameM))]
+    print(Dir)
+    for file in Dir:
+        print(file)
+        
+        Data =  pd.read_csv(file)
+        #Data = pd.read_csv(r'C:\Users\JohnnyCCHuang\Desktop\AIA\Other_AOILIGHTBOX_phase2\Download\SanityData_ABAOI600_2020_11.csv')
+        
+        LIST = []
+        
+        ###取出包含下列字串的欄位資料
+        for i in Data.columns:
+            if 'ActiveArea_AvgHighGL' in i:
+                LIST.append(i)
+            if 'Start_Date' in i:
+                LIST.append(i)
+            if 'Start_Time' in i:
+                LIST.append(i)
+            if 'Lot_Id' in i:
+                LIST.append(i)
+        Data2 = Data[LIST]
+        
+        ##整併出新日期
+        DT = Data2['Start_Time'].str.split(':', 8, True)
+        DD = Data2['Start_Date'].str.split('/', 8, True)
+        Data2['DDY'] = str(datetime.datetime.now().year)[0:2]
+        Data2['datetime'] = Data2['DDY']+DD[2]+'-'+DD[1]+'-'+DD[0]+' '+Data2['Start_Time']
+        Data2.drop(columns = ['DDY','Start_Time','Start_Date'],inplace = True)
+        
+        ## by lotid做整理
+        Data3 = Data2.groupby('Lot_Id').max().reset_index()
+        
+        parmeter = []
+        value = []
+        Datetime = []
+        LOTID = []
+        for i in range(len(Data3)):    
+            for nam in Data3.columns:
+                if '#' in nam:
+                    if Data3.loc[i,nam]>0:
+                        print(round(Data3.loc[i,nam],5),nam,Data3.loc[i,'datetime'])
+                        parmeter.append(round(Data3.loc[i,nam],5))
+                        value.append(nam)
+                        Datetime.append(Data3.loc[i,'datetime'])
+                        LOTID.append(Data3.loc[i,'Lot_Id'])
+        
+        
+        D_LIST = {'datetime':Datetime,'LOTID':LOTID,'parmeter':parmeter,'value':value}
+        
+        ResultPF = pd.DataFrame(D_LIST)
+        
+        
+        #ResultPF.to_csv('SanityData_ABAOI600.csv',index = False)
+        
+        Result = 'SanityData_%s.csv'%(eq)
+        ##確認有沒有今年已執行過的舊檔案
+        if os.path.isfile('./'+Result):
+            DataOr = pd.read_csv(Result)
+            ResultPF = pd.concat([DataOr,ResultPF])
+            ResultPF.drop_duplicates('datetime',inplace=True)
+            ResultPF = ResultPF.head(SIZE)
+            ResultPF.to_csv(Result,index = False)
+            print('Save OK',eq,'haveOLD')
+        else:
+            ResultPF.to_csv(Result,index = False)
+            print('Save OK',eq)
+            
+        ##CSV上拋EDA
+        os.system('D:/curl/bin/curl.exe -F "site=L5C" -F "path=Array_CF/C01" -F "files=@%s" http://autceda/files/MultiUpload'%(os.path.join(os.getcwd(),Result)))
+        os.system('D:/curl/bin/curl.exe -F "site=L5C" -F "path=Array_CF/I3" -F "files=@%s" http://autceda/files/MultiUpload'%(os.path.join(os.getcwd(),Result)))
+        
+        
+        import numpy as np
+import matplotlib.pyplot as plt    
+N = 5 
+men_means = (20, 35, 30, 35, 27)
+
+import matplotlib
+matplotlib.use('Agg')
+
+index = np.arange(N)
+#通過 color、linestyle、marker 等設置顏色、線條、點等屬性
+line = plt.plot(index, men_means, color='#AE81FF', linestyle='dashed', 
+    marker='o', label='men_means')
+#設置圖例
+plt.legend(loc='upper center', title='legend title')
+plt.title('this is title')
+plt.savefig('plot2.png')
+plt.cla()
